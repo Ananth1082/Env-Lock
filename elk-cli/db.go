@@ -15,6 +15,14 @@ import (
 var sqlStmt string
 var DB *DbCon
 
+func init() {
+	var err error
+	DB, err = NewConnection(path.Join(CONFIG_DIR, "elk.db"))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 type DbCon struct {
 	*sql.DB
 }
@@ -28,7 +36,7 @@ func NewConnection(dbFile string) (*DbCon, error) {
 }
 
 type File struct {
-	ID          int
+	ID          int64
 	Name        string
 	Path        string
 	Description string
@@ -37,26 +45,27 @@ type File struct {
 }
 
 type FileMin struct {
-	ID          int
+	ID          int64
 	Name        string
 	Description string
 }
 
-func (db *DbCon) CreateFile(file *File) error {
-	stmt, err := db.Prepare("INSERT INTO files (name, path, description,key,salt) VALUES (?, ?, ?, ?, ?)")
+func (db *DbCon) CreateFile(file *File) (*File, error) {
+	stmt, err := db.Prepare("INSERT INTO files (name, file_path, description,key,salt) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = stmt.Exec(file.Name, file.Path, file.Description, file.Key, file.Salt)
+	res, err := stmt.Exec(file.Name, file.Path, file.Description, file.Key, file.Salt)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	file.ID, _ = res.LastInsertId()
+	return file, nil
 }
 
-func (db *DbCon) GetFile(id int) (*File, error) {
+func (db *DbCon) GetFile(id int64) (*File, error) {
 	file := new(File)
-	err := db.QueryRow("SELECT id, name, path, description, key, salt FROM files WHERE id = ?", id).Scan(&file.ID, &file.Name, &file.Path, &file.Description, &file.Key, &file.Salt)
+	err := db.QueryRow("SELECT id, name, file_path, description, key, salt FROM files WHERE id = ?", id).Scan(&file.ID, &file.Name, &file.Path, &file.Description, &file.Key, &file.Salt)
 	if err != nil {
 		return nil, err
 	}

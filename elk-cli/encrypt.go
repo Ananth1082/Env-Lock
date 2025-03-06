@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"path"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -57,45 +60,59 @@ func encrypt(data []byte, key []byte) ([]byte, []byte, error) {
 	return nonce, ciphertext, nil
 }
 
-func encryptTest() {
-	fileData, err := os.ReadFile("test/test.env")
+func encryptFile(file string) *File {
+	fileData, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
-		return
+		return nil
 	}
 
 	aesKey, err := generateKey()
 	if err != nil {
 		fmt.Println("Error generating key:", err)
-		return
+		return nil
 	}
 
 	nonce, encryptedData, err := encrypt(fileData, aesKey)
 	if err != nil {
 		fmt.Println("Encryption error:", err)
-		return
+		return nil
 	}
 
-	output, err := os.Create("test/test.enc")
+	encFile := uuid.New().String() + ".enc"
+	output, err := os.Create(path.Join(ENC_DIR, encFile))
 	if err != nil {
 		fmt.Println("Error creating encrypted file:", err)
-		return
+		return nil
 	}
 	defer output.Close()
 
 	output.Write(nonce)
 	output.Write(encryptedData)
 
-	fmt.Println("AES Key (hex):", hex.EncodeToString(aesKey))
 	password := ""
 	fmt.Println("Enter password:")
 	fmt.Scanln(&password)
+	check := CheckPassword(password)
+	if !check {
+		log.Fatalln("Incorrect password")
+	}
 	masterKey, salt := deriveMasterKey(password)
 	nonce, encryptedData, err = encrypt(aesKey, masterKey)
 	if err != nil {
 		fmt.Println("Encryption error:", err)
-		return
+		return nil
 	}
-	fmt.Println("Encrypted key: ", hex.EncodeToString(append(nonce, encryptedData...)))
-	fmt.Println("Salt: ", hex.EncodeToString(salt))
+	fileMetaData := File{
+		Name:        file,
+		Description: "Encrypted file",
+		Path:        encFile,
+		Key:         hex.EncodeToString(append(nonce, encryptedData...)),
+		Salt:        hex.EncodeToString(salt),
+	}
+	newfile, err := DB.CreateFile(&fileMetaData)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return newfile
 }

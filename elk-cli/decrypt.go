@@ -29,33 +29,29 @@ func decrypt(encryptedData []byte, nonce []byte, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func decryptTest() {
-	encFile, err := os.ReadFile("test/test.enc")
+func decryptTest(fileId int64) {
+	file, err := DB.GetFile(fileId)
+	if err != nil {
+		log.Fatalln("Error getting file:", err)
+	}
+	encFile, err := os.ReadFile(path.Join(ENC_DIR, file.Path))
 	if err != nil {
 		fmt.Println("Error reading encrypted file:", err)
 		return
 	}
 
-	var aesKeyHex string
 	var password string
-	var salt string
-
-	fmt.Print("Enter AES encrypted Key (hex): ")
-	fmt.Scanln(&aesKeyHex)
 
 	fmt.Println("Enter the password: ")
 	fmt.Scanln(&password)
-
-	fmt.Println("Enter the salt: ")
-	fmt.Scanln(&salt)
-
-	aesEncKey, err := hex.DecodeString(aesKeyHex)
+	CheckPassword(password)
+	aesEncKey, err := hex.DecodeString(file.Key)
 	if err != nil {
 		fmt.Println("Invalid AES key")
 		return
 	}
 
-	saltBytes, err := hex.DecodeString(salt)
+	saltBytes, err := hex.DecodeString(file.Salt)
 	if err != nil || len(saltBytes) != ARGON2_SALT_SIZE {
 		fmt.Println("Invalid salt")
 		return
@@ -80,7 +76,7 @@ func decryptTest() {
 		return
 	}
 
-	err = os.WriteFile(path.Join(ENC_DIR, "test.enc"), decryptedData, 0644)
+	err = os.WriteFile(".env", decryptedData, 0644)
 	if err != nil {
 		fmt.Println("Error writing decrypted file:", err)
 		return

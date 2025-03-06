@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 )
@@ -114,4 +116,33 @@ func ElkInit() {
 	}
 
 	fmt.Println("ELK CLI initialized successfully!")
+}
+
+func CheckPassword(password string) bool {
+	data, err := os.ReadFile(CONFIG_FILE)
+	if err != nil {
+		log.Fatal(err)
+	}
+	config := new(struct {
+		Owner struct {
+			Password_hash string
+			Name          string
+		}
+	})
+	err = toml.Unmarshal(data, config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Config : ", config)
+	pswdHash, err := hex.DecodeString(config.Owner.Password_hash)
+	if err != nil {
+		log.Fatal("Corrupted password hash")
+	}
+	err = bcrypt.CompareHashAndPassword(pswdHash, []byte(password))
+	if err != nil {
+		fmt.Println("Incorrect password")
+		return false
+	}
+	fmt.Println("Correct password")
+	return true
 }
