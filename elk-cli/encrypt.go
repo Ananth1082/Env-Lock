@@ -60,7 +60,7 @@ func encrypt(data []byte, key []byte) ([]byte, []byte, error) {
 	return nonce, ciphertext, nil
 }
 
-func encryptFile(file string) *File {
+func encryptFile(file string, name string, description string) *File {
 	fileData, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
@@ -90,22 +90,20 @@ func encryptFile(file string) *File {
 	output.Write(nonce)
 	output.Write(encryptedData)
 
-	password := ""
-	fmt.Println("Enter password:")
-	fmt.Scanln(&password)
+	password := EnterPassword()
 	check := CheckPassword(password)
 	if !check {
 		log.Fatalln("Incorrect password")
 	}
-	masterKey, salt := deriveMasterKey(password)
+	masterKey, salt := deriveMasterKey(string(password))
 	nonce, encryptedData, err = encrypt(aesKey, masterKey)
 	if err != nil {
 		fmt.Println("Encryption error:", err)
 		return nil
 	}
 	fileMetaData := File{
-		Name:        file,
-		Description: "Encrypted file",
+		Name:        name,
+		Description: description,
 		Path:        encFile,
 		Key:         hex.EncodeToString(append(nonce, encryptedData...)),
 		Salt:        hex.EncodeToString(salt),

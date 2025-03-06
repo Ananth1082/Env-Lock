@@ -84,13 +84,7 @@ func ElkInit() {
 	email = strings.TrimSpace(email)
 
 	fmt.Print("Enter your password (Remember the password): ")
-	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Println("\nError reading password:", err)
-		return
-	}
-	fmt.Println()
-
+	bytePassword := EnterPassword()
 	bcryptHash, err := HashPassword(bytePassword)
 	if err != nil {
 		fmt.Println("Error hashing password:", err)
@@ -118,7 +112,16 @@ func ElkInit() {
 	fmt.Println("ELK CLI initialized successfully!")
 }
 
-func CheckPassword(password string) bool {
+func EnterPassword() []byte {
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		log.Fatalln("\nError reading password:", err)
+	}
+	fmt.Println()
+	return bytePassword
+}
+
+func CheckPassword(password []byte) bool {
 	data, err := os.ReadFile(CONFIG_FILE)
 	if err != nil {
 		log.Fatal(err)
@@ -133,12 +136,11 @@ func CheckPassword(password string) bool {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Config : ", config)
 	pswdHash, err := hex.DecodeString(config.Owner.Password_hash)
 	if err != nil {
 		log.Fatal("Corrupted password hash")
 	}
-	err = bcrypt.CompareHashAndPassword(pswdHash, []byte(password))
+	err = bcrypt.CompareHashAndPassword(pswdHash, password)
 	if err != nil {
 		fmt.Println("Incorrect password")
 		return false
