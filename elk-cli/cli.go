@@ -26,29 +26,14 @@ func Control(cmd string, args []string) {
 		Delete(args)
 	case "list":
 		List(args)
+	case "get":
+		Get(args)
 	case "help":
 		Help()
 	default:
 		fmt.Println("Invalid command!")
 		Help()
 	}
-}
-
-// CreateUsage prints usage for the create command
-func CreateUsage() {
-	fmt.Println("Usage: elk-cli create -f [file_path] -n [name] -d [description]")
-	os.Exit(1)
-}
-
-// Help prints general usage info
-func Help() {
-	fmt.Println("Usage: elk-cli [command] [flags]")
-	fmt.Println("Commands:")
-	fmt.Println("  create  - Create a new encrypted env file")
-	fmt.Println("  delete  - Delete an env file")
-	fmt.Println("  list    - List all env files")
-	fmt.Println("  help    - Show usage information")
-	os.Exit(1)
 }
 
 // Create handles the "create" command
@@ -75,6 +60,29 @@ func Create(args []string) {
 	fmt.Println("ID:", fileDetails.ID)
 	fmt.Println("Name:", fileDetails.Name)
 	fmt.Println("Description:", fileDetails.Description)
+}
+
+func Get(args []string) {
+	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
+	id := createCmd.Int64("id", 0, "ID of the file")
+
+	// Parse the flags from args
+	err := createCmd.Parse(args)
+	if err != nil || *id == 0 {
+		GetUsage()
+	}
+
+	file, err := DB.GetFile(*id)
+	if err != nil {
+		fmt.Println("File not found")
+		return
+	}
+	fmt.Println("File Details:")
+	fmt.Println("ID:", file.ID)
+	fmt.Println("Name:", file.Name)
+	fmt.Println("Description:", file.Description)
+
+	decryptFile(file.ID)
 }
 
 // Delete command

@@ -8,7 +8,7 @@ func CryptoTest() {
 		log.Fatalln("Error encrypting file")
 		return
 	}
-	decryptTest(file.ID)
+	decryptFile(file.ID)
 }
 
 func InitTest() {

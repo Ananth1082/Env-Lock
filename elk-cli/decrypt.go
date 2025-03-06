@@ -29,7 +29,7 @@ func decrypt(encryptedData []byte, nonce []byte, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func decryptTest(fileId int64) {
+func decryptFile(fileId int64) {
 	file, err := DB.GetFile(fileId)
 	if err != nil {
 		log.Fatalln("Error getting file:", err)
@@ -41,10 +41,9 @@ func decryptTest(fileId int64) {
 	}
 
 	var password string
-
-	fmt.Println("Enter the password: ")
-	fmt.Scanln(&password)
-	CheckPassword(password)
+	fmt.Print("Password: ")
+	pswd := EnterPassword()
+	CheckPassword(pswd)
 	aesEncKey, err := hex.DecodeString(file.Key)
 	if err != nil {
 		fmt.Println("Invalid AES key")
@@ -58,6 +57,7 @@ func decryptTest(fileId int64) {
 	}
 	masterKey := deriveMasterKeyWithSalt(password, saltBytes)
 	aesKey, err := decrypt(aesEncKey[NONCE_SIZE:], aesEncKey[:NONCE_SIZE], masterKey)
+	fmt.Println("aes key: ", hex.EncodeToString(aesKey))
 	if err != nil {
 		log.Panicf("Error: %v", err)
 	}

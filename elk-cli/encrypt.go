@@ -89,14 +89,15 @@ func encryptFile(file string, name string, description string) *File {
 
 	output.Write(nonce)
 	output.Write(encryptedData)
-
+	fmt.Print("Password: ")
 	password := EnterPassword()
 	check := CheckPassword(password)
 	if !check {
 		log.Fatalln("Incorrect password")
 	}
+	fmt.Println("aes key: ", hex.EncodeToString(aesKey))
 	masterKey, salt := deriveMasterKey(string(password))
-	nonce, encryptedData, err = encrypt(aesKey, masterKey)
+	nonce, encaesKey, err := encrypt(aesKey, masterKey)
 	if err != nil {
 		fmt.Println("Encryption error:", err)
 		return nil
@@ -105,9 +106,10 @@ func encryptFile(file string, name string, description string) *File {
 		Name:        name,
 		Description: description,
 		Path:        encFile,
-		Key:         hex.EncodeToString(append(nonce, encryptedData...)),
+		Key:         hex.EncodeToString(append(nonce, encaesKey...)),
 		Salt:        hex.EncodeToString(salt),
 	}
+	fmt.Println("enc key: ", hex.EncodeToString(append(nonce, encaesKey...)))
 	newfile, err := DB.CreateFile(&fileMetaData)
 	if err != nil {
 		log.Fatal(err)
