@@ -88,7 +88,7 @@ func encryptFile(fileName string, outFileName string) ([]byte, []byte, error) {
 	password := EnterPassword()
 	check := CheckPassword(password)
 	if !check {
-		log.Fatalln("Incorrect password")
+		return nil, nil, ErrInvalidPassword
 	}
 	masterKey, salt := deriveMasterKey(string(password))
 	nonce, encaesKey, err := encrypt(aesKey, masterKey)

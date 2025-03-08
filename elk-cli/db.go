@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -107,20 +106,16 @@ func (db *DbCon) UpdateFile(file *FileMeta) error {
 }
 
 func (db *DbCon) UpdateFileWithEncFile(file *File) error {
-	fmt.Println("Updating file with encrypted file")
-	fmt.Println("File:", file)
 
 	stmt, err := db.Prepare("UPDATE files SET name = ?, description = ?, key = ?, salt = ? WHERE id = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	res, err := stmt.Exec(file.Details.Name, file.Details.Description, file.Key, file.Salt, file.Details.ID)
+	_, err = stmt.Exec(file.Details.Name, file.Details.Description, file.Key, file.Salt, file.Details.ID)
 	if err != nil {
 		return err
 	}
-	id, _ := res.RowsAffected()
-	log.Println("Rows affected:", id)
 	return nil
 }
 
@@ -133,6 +128,7 @@ func (db *DbCon) DeleteFile(id int64) error {
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(id)
 	if err != nil {
 		return err

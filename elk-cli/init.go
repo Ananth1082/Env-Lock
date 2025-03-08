@@ -135,7 +135,7 @@ func CheckPassword(password []byte) bool {
 	}
 	err = bcrypt.CompareHashAndPassword(pswdHash, password)
 	if err != nil {
-		fmt.Println("Incorrect password")
+		util.PrintError("Incorrect password")
 		return false
 	}
 	fmt.Println("Correct password")
