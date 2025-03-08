@@ -55,3 +55,7 @@ Delete the given lock
 ```
 elk delete -id <lock_id>
 ```
+
+## Future Ideas
+
+Online version of elk where you can share env files across teams in a secure way.
