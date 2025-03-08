@@ -2,12 +2,15 @@ package main
 
 import (
 	"bufio"
+	"elk/elk/util"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"syscall"
+
+	_ "embed"
 
 	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -18,16 +21,8 @@ const (
 	PSWD_HASH_PRICE = 12
 )
 
-const init_temp = ` # ELK CLI configuration file
-# This file contains the configuration for the ELK CLI tool
-                                                                             
-title = "elk config"
-
-[owner]
-name = "%s"
-email = "%s"
-password_hash = "%s"
-`
+//go:embed user.toml
+var init_temp string
 
 func HashPassword(password []byte) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(password, PSWD_HASH_PRICE)
@@ -36,12 +31,11 @@ func HashPassword(password []byte) ([]byte, error) {
 func ElkInit() {
 	_, err := os.Stat(CONFIG_FILE)
 	if err == nil {
-		fmt.Println("ELK CLI already initialized")
+		util.PrintWarning("ELK CLI already initialized")
 		return
 	}
-
-	fmt.Print(`Initializing ELK CLI...
-	
+	util.PrintSuccess("Initializing ELK CLI...")
+	util.PrintWarning(`
  /$$$$$$$$                            /$$                           /$$      
 | $$_____/                           | $$                          | $$      
 | $$       /$$$$$$$  /$$    /$$      | $$        /$$$$$$   /$$$$$$$| $$   /$$
@@ -54,53 +48,52 @@ func ElkInit() {
 `)
 
 	if err := os.Mkdir(CONFIG_DIR, 0700); err != nil && !os.IsExist(err) {
-		fmt.Println("Error creating config directory:", err)
+		util.PrintError("Error creating config directory:")
 		return
 	}
-	fmt.Println("Created config directory!!!")
+	util.PrintSuccess("1) Created config directory!!!")
 
 	if err := os.Mkdir(ENC_DIR, 0700); err != nil && !os.IsExist(err) {
-		fmt.Println("Error creating encryption directory:", err)
+		util.PrintError("Error creating encryption directory")
 		return
 	}
-	fmt.Println("Created encryption directory!!!")
-
+	util.PrintSuccess("2) Created encryption directory!!!")
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Enter your name: ")
+	util.PrintPrompt("Enter your name: ")
 	username, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading name:", err)
+		util.PrintError("Error reading name")
 		return
 	}
 	username = strings.TrimSpace(username)
 
-	fmt.Print("Enter your email: ")
+	util.PrintPrompt("Enter your email: ")
 	email, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading email:", err)
+		util.PrintError("Error reading email")
 		return
 	}
 	email = strings.TrimSpace(email)
 
-	fmt.Print("Enter your password (Remember the password): ")
+	util.PrintPrompt("3) Enter your password (remember this password, you will need it to access the CLI):")
 	bytePassword := EnterPassword()
 	bcryptHash, err := HashPassword(bytePassword)
 	if err != nil {
-		fmt.Println("Error hashing password:", err)
+		util.PrintError("Error hashing password")
 		return
 	}
 
 	file, err := os.Create(CONFIG_FILE)
 	if err != nil {
-		fmt.Println("Error creating config file:", err)
+		util.PrintError("Error creating config file")
 		return
 	}
 	defer file.Close()
 
 	configData := fmt.Sprintf(init_temp, username, email, hex.EncodeToString(bcryptHash))
 	if _, err := file.WriteString(configData); err != nil {
-		fmt.Println("Error writing to config file:", err)
+		util.PrintError("Error writing to config file")
 		return
 	}
 
@@ -108,8 +101,8 @@ func ElkInit() {
 		fmt.Println("Error setting file permissions:", err)
 		return
 	}
-
-	fmt.Println("ELK CLI initialized successfully!")
+	InitDB()
+	util.PrintSuccess("Created config file!!!")
 }
 
 func EnterPassword() []byte {
@@ -146,5 +139,29 @@ func CheckPassword(password []byte) bool {
 		return false
 	}
 	fmt.Println("Correct password")
+	return true
+}
+
+func CheckUser() bool {
+	data, err := os.ReadFile(CONFIG_FILE)
+	if err != nil {
+		util.PrintError("ELK CLI not initialized")
+		ElkInit()
+		return false
+	}
+	var User struct {
+		Owner struct {
+			Name          string
+			Email         string
+			Password_hash string
+		}
+	}
+	err = toml.Unmarshal(data, &User)
+	if err != nil || User.Owner.Name == "" || User.Owner.Email == "" || User.Owner.Password_hash == "" {
+		log.Println("Invalid config file", err)
+		util.PrintError("Invalid config file")
+		ElkInit()
+		return false
+	}
 	return true
 }

@@ -11,14 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetCmd() (string, []string) {
+func GetCmd() (string, []string, error) {
 	if len(os.Args) < 2 {
-		fmt.Println("Error: command is required")
-		HelpExit()
+		util.PrintError("Error: command is required")
+		Help()
+		return "", nil, fmt.Errorf("command is required")
 	}
 	cmd := os.Args[1]
 	args := os.Args[2:]
-	return cmd, args
+	return cmd, args, nil
 }
 
 func Control(cmd string, args []string) {
@@ -34,10 +35,10 @@ func Control(cmd string, args []string) {
 	case "update":
 		Update(args)
 	case "help":
-		HelpExit()
+		Help()
 	default:
-		fmt.Println("Error: Invalid command!")
-		HelpExit()
+		util.PrintError("Error: Invalid command!")
+		Help()
 	}
 }
 
@@ -49,12 +50,14 @@ func Create(args []string) {
 
 	err := createCmd.Parse(args)
 	if err != nil {
-		CreateUsageExit()
+		CreateUsage()
+		return
 	}
 
 	if *file == "" {
 		util.PrintError("Error: -f is required")
-		CreateUsageExit()
+		CreateUsage()
+		return
 	}
 	pathId := uuid.New().String() + ".enc"
 	encFilepath := path.Join(ENC_DIR, pathId)
@@ -72,6 +75,7 @@ func Create(args []string) {
 	err = DB.CreateFile(fileDetails)
 	if err != nil {
 		util.PrintError("Error: couldnt create file in db")
+		return
 	}
 	util.PrintSuccess("File created successfully")
 	fmt.Println("\nFile Details:")
@@ -87,7 +91,8 @@ func Get(args []string) {
 
 	err := getCmd.Parse(args)
 	if err != nil || *id == 0 {
-		GetUsageExit()
+		GetUsage()
+		return
 	}
 
 	file, err := DB.GetFile(*id)
@@ -203,6 +208,13 @@ func List(args []string) {
 }
 
 func CLI() {
-	cmd, args := GetCmd()
+	isUser := CheckUser()
+	if !isUser {
+		return
+	}
+	cmd, args, err := GetCmd()
+	if err != nil {
+		return
+	}
 	Control(cmd, args)
 }

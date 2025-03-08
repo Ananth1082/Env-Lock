@@ -1,0 +1,9 @@
+# ELK CLI configuration file
+# This file contains the configuration for the ELK CLI tool
+                                                                             
+title = "elk config"
+
+[owner]
+name = "%s"
+email = "%s"
+password_hash = "%s"
