@@ -57,29 +57,29 @@ func encrypt(data []byte, key []byte) ([]byte, []byte, error) {
 	return nonce, ciphertext, nil
 }
 
-func encryptFile(fileName string, outFileName string) ([]byte, []byte) {
+func encryptFile(fileName string, outFileName string) ([]byte, []byte, error) {
 
 	fileData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Panicln("Error reading file:", err)
-		return nil, nil
+
+		return nil, nil, ErrFileNotFound
 	}
 
 	aesKey, err := generateKey()
 	if err != nil {
 		log.Panicln("Error generating key:", err)
-		return nil, nil
+		return nil, nil, ErrGeneratingKey
 	}
 
 	nonce, encryptedData, err := encrypt(fileData, aesKey)
 	if err != nil {
 		log.Panicln("Encryption error:", err)
-		return nil, nil
+		return nil, nil, ErrEncryption
 	}
 	output, err := os.Create(outFileName)
 	if err != nil {
 		log.Panicln("Error creating encrypted file:", err)
-		return nil, nil
+		return nil, nil, ErrIo
 	}
 	defer output.Close()
 	output.Write(nonce)
@@ -93,9 +93,8 @@ func encryptFile(fileName string, outFileName string) ([]byte, []byte) {
 	masterKey, salt := deriveMasterKey(string(password))
 	nonce, encaesKey, err := encrypt(aesKey, masterKey)
 	if err != nil {
-		fmt.Println("Encryption error:", err)
-		return nil, nil
+		return nil, nil, ErrEncryption
 	}
 
-	return append(nonce, encaesKey...), salt
+	return append(nonce, encaesKey...), salt, nil
 }

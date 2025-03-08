@@ -5,22 +5,22 @@ import (
 	"os"
 )
 
-func CreateUsage() {
+func CreateUsageExit() {
 	fmt.Println("Usage: elk create -f [file_path] -n [name] -d [description]")
 	os.Exit(1)
 }
 
-func GetUsage() {
+func GetUsageExit() {
 	fmt.Println("Usage: elk get -id [file_id]")
 	os.Exit(1)
 }
 
-func DeleteUsage() {
+func DeleteUsageExit() {
 	fmt.Println("Usage: elk delete -id [file_id]")
 	os.Exit(1)
 }
 
-func Help() {
+func HelpExit() {
 	fmt.Println("Usage: elk [command] [flags]")
 	fmt.Println("Commands:")
 	fmt.Println("  create  - Create a new encrypted env file")

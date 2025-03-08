@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path"
 
@@ -14,8 +13,8 @@ import (
 
 func GetCmd() (string, []string) {
 	if len(os.Args) < 2 {
-		Help()
-		os.Exit(1)
+		fmt.Println("Error: command is required")
+		HelpExit()
 	}
 	cmd := os.Args[1]
 	args := os.Args[2:]
@@ -35,10 +34,10 @@ func Control(cmd string, args []string) {
 	case "update":
 		Update(args)
 	case "help":
-		Help()
+		HelpExit()
 	default:
-		fmt.Println("Invalid command!")
-		Help()
+		fmt.Println("Error: Invalid command!")
+		HelpExit()
 	}
 }
 
@@ -50,17 +49,20 @@ func Create(args []string) {
 
 	err := createCmd.Parse(args)
 	if err != nil {
-		CreateUsage()
+		CreateUsageExit()
 	}
 
 	if *file == "" {
-		fmt.Println("Error: -f (file path) is required")
-		CreateUsage()
+		util.PrintError("Error: -f is required")
+		CreateUsageExit()
 	}
 	pathId := uuid.New().String() + ".enc"
 	encFilepath := path.Join(ENC_DIR, pathId)
-	key, salt := encryptFile(*file, encFilepath)
-
+	key, salt, err := encryptFile(*file, encFilepath)
+	if err != nil {
+		util.PrintError("Error: couldnt encrypt file\nReason: " + err.Error())
+		return
+	}
 	fileDetails := &File{}
 	fileDetails.Details.Name = *name
 	fileDetails.Path = pathId
@@ -69,12 +71,13 @@ func Create(args []string) {
 	fileDetails.Details.Description = *description
 	err = DB.CreateFile(fileDetails)
 	if err != nil {
-		fmt.Println("Error: creating file in local db", err)
+		util.PrintError("Error: couldnt create file in db")
 	}
-	fmt.Println("File Encrypted:")
-	fmt.Println("ID:", fileDetails.Details.ID)
-	fmt.Println("Name:", fileDetails.Details.Name)
-	fmt.Println("Description:", fileDetails.Details.Description)
+	util.PrintSuccess("File created successfully")
+	fmt.Println("\nFile Details:")
+	fmt.Println("\tID:", fileDetails.Details.ID)
+	fmt.Println("\tName:", fileDetails.Details.Name)
+	fmt.Println("\tDescription:", fileDetails.Details.Description)
 }
 
 func Get(args []string) {
@@ -84,20 +87,25 @@ func Get(args []string) {
 
 	err := getCmd.Parse(args)
 	if err != nil || *id == 0 {
-		GetUsage()
+		GetUsageExit()
 	}
 
 	file, err := DB.GetFile(*id)
 	if err != nil {
-		fmt.Println("File not found")
+		util.PrintError("File not found")
 		return
 	}
-	fmt.Println("File Details:")
-	fmt.Println("ID:", file.Details.ID)
-	fmt.Println("Name:", file.Details.Name)
-	fmt.Println("Description:", file.Details.Description)
+	util.PrintSuccess("File found")
+	fmt.Println("\nFile Details:")
+	fmt.Println("\tID:", file.Details.ID)
+	fmt.Println("\tName:", file.Details.Name)
+	fmt.Println("\tDescription:", file.Details.Description)
 
-	decryptFile(file.Details.ID, *out)
+	err = decryptFile(file.Details.ID, *out)
+	if err != nil {
+		util.PrintError("Error: couldnt decrypt file\nReason: " + err.Error())
+		return
+	}
 }
 
 func Update(args []string) {
@@ -109,24 +117,24 @@ func Update(args []string) {
 
 	err := getCmd.Parse(args)
 	if err != nil {
-		log.Fatal(err)
+		util.PrintError("Error: couldnt parse args")
+		return
 	}
 	if id == nil || *id == 0 {
-		log.Fatal("Error: -id is required")
+		util.PrintError("Error: -id is required")
+		return
 	}
 	file, err := DB.GetFile(*id)
 	if err != nil {
-		log.Fatal(err)
+		util.PrintError("Error: file not found")
+		return
 	}
-	fmt.Println("Current Details:", file)
-	fmt.Println("New details: ", *name, *description, *newfile)
 	if *name != "" {
 		file.Details.Name = *name
 	}
 	if *description != "" {
 		file.Details.Description = *description
 	}
-	fmt.Println("New details: ", file)
 	if *newfile == "" {
 		err = DB.UpdateFile(&FileMeta{
 			ID:          file.Details.ID,
@@ -134,19 +142,25 @@ func Update(args []string) {
 			Description: file.Details.Description,
 		})
 		if err != nil {
-			log.Fatal(err)
+			util.PrintError("Error: couldnt update file")
+			return
 		}
 		return
 	}
 	encFilePath := path.Join(ENC_DIR, file.Path)
-	key, salt := encryptFile(*newfile, encFilePath)
+	key, salt, err := encryptFile(*newfile, encFilePath)
+	if err != nil {
+		util.PrintError("Error: couldnt encrypt file \n Reason: " + err.Error())
+		return
+	}
 	file.Key = hex.EncodeToString(key)
 	file.Salt = hex.EncodeToString(salt)
 	err = DB.UpdateFileWithEncFile(file)
 	if err != nil {
-		log.Fatal(err)
+		util.PrintError("Error: couldnt update file")
+		return
 	}
-	fmt.Println("File updated successfully")
+	util.PrintSuccess("File updated successfully")
 }
 
 func Delete(args []string) {
@@ -154,20 +168,31 @@ func Delete(args []string) {
 	id := getCmd.Int64("id", 0, "ID of the file")
 
 	err := getCmd.Parse(args)
-	if err != nil || id == nil {
-		log.Fatal(err)
+	if err != nil {
+		util.PrintError("Error: couldnt parse args")
+		return
+	}
+	if id == nil || *id == 0 {
+		util.PrintError("Error: -id is required")
+		return
 	}
 	err = DB.DeleteFile(*id)
 	if err != nil {
-		log.Fatal(err)
+		util.PrintError("Error: couldnt delete file")
+		return
 	}
-	fmt.Println("File deleted successfully")
+	util.PrintSuccess("File deleted successfully")
 }
 
 func List(args []string) {
 	files, err := DB.GetFiles()
 	if err != nil {
-		log.Fatal(err)
+		util.PrintError("Error: couldnt get files")
+		return
+	}
+	if len(files) == 0 {
+		util.PrintWarning("No files found")
+		return
 	}
 	fileTable := util.NewTable("Files")
 	fileTable.InitColumns([]string{"ID", "Name", "Description", "Created at", "Updated at"})

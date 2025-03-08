@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"path"
 )
@@ -29,15 +28,14 @@ func decrypt(encryptedData []byte, nonce []byte, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func decryptFile(fileId int64, outFile string) {
+func decryptFile(fileId int64, outFile string) error {
 	file, err := DB.GetFile(fileId)
 	if err != nil {
-		log.Fatalln("Error getting file:", err)
+		return ErrFileNotFound
 	}
 	encFile, err := os.ReadFile(path.Join(ENC_DIR, file.Path))
 	if err != nil {
-		fmt.Println("Error reading encrypted file:", err)
-		return
+		return ErrFileNotFound
 	}
 
 	fmt.Print("Password: ")
@@ -46,24 +44,23 @@ func decryptFile(fileId int64, outFile string) {
 	aesEncKey, err := hex.DecodeString(file.Key)
 	if err != nil {
 		fmt.Println("Invalid AES key")
-		return
+		return ErrInvalidKeyFormat
 	}
 
 	saltBytes, err := hex.DecodeString(file.Salt)
 	if err != nil || len(saltBytes) != ARGON2_SALT_SIZE {
 		fmt.Println("Invalid salt")
-		return
+		return ErrInvalidKeyFormat
 	}
 	masterKey := deriveMasterKeyWithSalt(string(pswd), saltBytes)
 	aesKey, err := decrypt(aesEncKey[NONCE_SIZE:], aesEncKey[:NONCE_SIZE], masterKey)
 	if err != nil {
-		log.Panicf("Error: %v", err)
-		return
+		return ErrDecryption
 	}
 
 	if len(encFile) < NONCE_SIZE {
 		fmt.Println("Invalid encrypted file")
-		return
+		return ErrInvalidEncryptionFile
 	}
 
 	nonce := encFile[:NONCE_SIZE]
@@ -72,7 +69,7 @@ func decryptFile(fileId int64, outFile string) {
 	decryptedData, err := decrypt(encryptedData, nonce, aesKey)
 	if err != nil {
 		fmt.Println("Decryption error:", err)
-		return
+		return ErrDecryption
 	}
 
 	if outFile == "" {
@@ -80,9 +77,7 @@ func decryptFile(fileId int64, outFile string) {
 	}
 	err = os.WriteFile(outFile, decryptedData, 0644)
 	if err != nil {
-		fmt.Println("Error writing decrypted file:", err)
-		return
+		return ErrIo
 	}
-
-	fmt.Println("Decryption successful! File saved as ", outFile)
+	return nil
 }
