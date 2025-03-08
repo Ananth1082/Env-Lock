@@ -1,4 +1,4 @@
-module elk/mv0
+module elk/elk
 
 go 1.24.0
 

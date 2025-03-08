@@ -29,7 +29,7 @@ func decrypt(encryptedData []byte, nonce []byte, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func decryptFile(fileId int64) {
+func decryptFile(fileId int64, outFile string) {
 	file, err := DB.GetFile(fileId)
 	if err != nil {
 		log.Fatalln("Error getting file:", err)
@@ -40,7 +40,6 @@ func decryptFile(fileId int64) {
 		return
 	}
 
-	var password string
 	fmt.Print("Password: ")
 	pswd := EnterPassword()
 	CheckPassword(pswd)
@@ -55,11 +54,11 @@ func decryptFile(fileId int64) {
 		fmt.Println("Invalid salt")
 		return
 	}
-	masterKey := deriveMasterKeyWithSalt(password, saltBytes)
+	masterKey := deriveMasterKeyWithSalt(string(pswd), saltBytes)
 	aesKey, err := decrypt(aesEncKey[NONCE_SIZE:], aesEncKey[:NONCE_SIZE], masterKey)
-	fmt.Println("aes key: ", hex.EncodeToString(aesKey))
 	if err != nil {
 		log.Panicf("Error: %v", err)
+		return
 	}
 
 	if len(encFile) < NONCE_SIZE {
@@ -76,11 +75,14 @@ func decryptFile(fileId int64) {
 		return
 	}
 
-	err = os.WriteFile(".env", decryptedData, 0644)
+	if outFile == "" {
+		outFile = ".env"
+	}
+	err = os.WriteFile(outFile, decryptedData, 0644)
 	if err != nil {
 		fmt.Println("Error writing decrypted file:", err)
 		return
 	}
 
-	fmt.Println("Decryption successful! File saved as test_decrypted.env")
+	fmt.Println("Decryption successful! File saved as ", outFile)
 }

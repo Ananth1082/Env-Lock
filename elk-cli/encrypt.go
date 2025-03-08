@@ -4,14 +4,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"path"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -60,33 +57,31 @@ func encrypt(data []byte, key []byte) ([]byte, []byte, error) {
 	return nonce, ciphertext, nil
 }
 
-func encryptFile(file string, name string, description string) *File {
-	fileData, err := os.ReadFile(file)
+func encryptFile(fileName string, outFileName string) ([]byte, []byte) {
+
+	fileData, err := os.ReadFile(fileName)
 	if err != nil {
-		fmt.Println("Error reading file:", err)
-		return nil
+		log.Panicln("Error reading file:", err)
+		return nil, nil
 	}
 
 	aesKey, err := generateKey()
 	if err != nil {
-		fmt.Println("Error generating key:", err)
-		return nil
+		log.Panicln("Error generating key:", err)
+		return nil, nil
 	}
 
 	nonce, encryptedData, err := encrypt(fileData, aesKey)
 	if err != nil {
-		fmt.Println("Encryption error:", err)
-		return nil
+		log.Panicln("Encryption error:", err)
+		return nil, nil
 	}
-
-	encFile := uuid.New().String() + ".enc"
-	output, err := os.Create(path.Join(ENC_DIR, encFile))
+	output, err := os.Create(outFileName)
 	if err != nil {
-		fmt.Println("Error creating encrypted file:", err)
-		return nil
+		log.Panicln("Error creating encrypted file:", err)
+		return nil, nil
 	}
 	defer output.Close()
-
 	output.Write(nonce)
 	output.Write(encryptedData)
 	fmt.Print("Password: ")
@@ -95,24 +90,12 @@ func encryptFile(file string, name string, description string) *File {
 	if !check {
 		log.Fatalln("Incorrect password")
 	}
-	fmt.Println("aes key: ", hex.EncodeToString(aesKey))
 	masterKey, salt := deriveMasterKey(string(password))
 	nonce, encaesKey, err := encrypt(aesKey, masterKey)
 	if err != nil {
 		fmt.Println("Encryption error:", err)
-		return nil
+		return nil, nil
 	}
-	fileMetaData := File{
-		Name:        name,
-		Description: description,
-		Path:        encFile,
-		Key:         hex.EncodeToString(append(nonce, encaesKey...)),
-		Salt:        hex.EncodeToString(salt),
-	}
-	fmt.Println("enc key: ", hex.EncodeToString(append(nonce, encaesKey...)))
-	newfile, err := DB.CreateFile(&fileMetaData)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return newfile
+
+	return append(nonce, encaesKey...), salt
 }
