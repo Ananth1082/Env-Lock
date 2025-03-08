@@ -6,6 +6,10 @@ Is a simple CLI tool to manage all your env files.
 
 Elk stores all your env file in ecrypted format which can only be accessed with the password. So you can store all your env files safely using it.
 
+## Get Started
+
+Clone the repo and build from source or using the elk executable in bin folder.
+
 ## CLI Commands
 
 Elk has 5 commnands create, update, list, get, delete.
